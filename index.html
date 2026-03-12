@@ -827,22 +827,22 @@ const ANIME_DATA = [
 ];
 
 // AniList IDs for cover images (CORS-enabled free API, no key needed)
-const ANILIST_IDS = {
+const MAL_IDS = {
   1: 20,
   2: 1735,
   3: 813,
   4: 21,
   5: 269,
-  6: 21459,
-  7: 101922,
-  8: 113415,
+  6: 31964,
+  7: 38000,
+  8: 40748,
   9: 11061,
   10: 5114,
   11: 16498,
   12: 11757,
-  13: 100383,
+  13: 34572,
   14: 6702,
-  15: 6033,
+  15: 30694,
   16: 30,
   17: 1,
   18: 199,
@@ -853,8 +853,8 @@ const ANILIST_IDS = {
   23: 223,
   24: 45,
   25: 99,
-  26: 14719,
-  27: 101340,
+  26: 269,
+  27: 37521,
   28: 33,
   29: 19,
   30: 1535,
@@ -864,12 +864,12 @@ const ANILIST_IDS = {
   34: 13601,
   35: 4181,
   36: 4224,
-  37: 20665,
+  37: 23273,
   38: 9989,
-  39: 20954,
-  40: 21858,
-  41: 21519,
-  42: 21366,
+  39: 28851,
+  40: 33352,
+  41: 32281,
+  42: 32048,
   43: 9756,
   44: 934,
   45: 433,
@@ -877,210 +877,132 @@ const ANILIST_IDS = {
   47: 20583,
   48: 11771,
   49: 170,
-  50: 21355,
-  51: 20605,
-  52: 21355,
-  53: 100080,
-  54: 127230,
-  55: 154587,
-  56: 145064,
-  57: 142838,
-  58: 134798,
-  59: 108465,
+  50: 31240,
+  51: 29803,
+  52: 37430,
+  53: 30831,
+  54: 50265,
+  55: 44511,
+  56: 52991,
+  57: 47917,
+  58: 49596,
+  59: 39535,
   60: 121,
-  61: 131340,
-  62: 108725,
-  63: 97938,
-  64: 108569,
-  65: 19815,
+  61: 49387,
+  62: 38680,
+  63: 32182,
+  64: 30276,
+  65: 22319,
   66: 19815,
-  67: 6,
-  68: 205,
-  69: 777,
-  70: 10087,
+  67: 2001,
+  68: 6,
+  69: 205,
+  70: 777,
   71: 10087,
-  72: 10269,
-  73: 976,
-  74: 97986,
-  75: 104578,
+  72: 22297,
+  73: 3588,
+  74: 976,
+  75: 97986,
   76: 116589,
-  77: 108736,
-  78: 918,
-  79: 20531,
-  80: 100388,
+  77: 129798,
+  78: 14719,
+  79: 918,
+  80: 20531,
   81: 100388,
-  82: 124080,
+  82: 101921,
   83: 124080,
-  84: 108891,
-  85: 2966,
-  86: 20507,
-  87: 2251,
-  88: 6746,
-  89: 71993,
-  90: 79120,
-  91: 100388,
-  92: 35790,
-  93: 99423,
-  94: 1818,
-  95: 3592,
-  96: 103220,
-  97: 232,
-  98: 440,
-  99: 5680,
-  100: 10165,
-  101: 521,
-  102: 849,
-  103: 104513,
-  104: 104513,
-  105: 21827,
-  106: 32995,
-  107: 21858,
-  108: 10174,
-  109: 116738,
-  110: 118193,
-  111: 10407,
-  112: 28805,
-  113: 24895,
-  114: 35760,
-  115: 99750,
-  116: 20507,
+  84: 14813,
+  85: 877,
+  86: 2966,
+  87: 20507,
+  88: 2251,
+  89: 6746,
+  90: 71993,
+  91: 149830,
+  92: 3002,
+  93: 35790,
+  94: 4898,
+  95: 1818,
+  96: 3592,
+  97: 103220,
+  98: 232,
+  99: 440,
+  100: 5680,
+  101: 10165,
+  102: 521,
+  103: 14513,
+  104: 116648,
+  105: 22817,
+  106: 119703,
+  107: 32995,
+  108: 6594,
+  109: 118193,
+  110: 101921,
+  111: 17885,
+  112: 498,
+  113: 28805,
+  114: 24895,
+  115: 35760,
+  116: 14741,
   117: 20605,
-  118: 98478,
-  119: 114901,
-  120: 145064,
-  121: 107348,
-  122: 99423,
-  123: 166531,
-  124: 130010,
-  125: 137958,
-  126: 146065,
-  127: 20613,
-  128: 139587,
-  129: 161645,
-  130: 104456,
-  131: 163132,
-  132: 13759,
-  133: 101291,
-  134: 134798,
-  135: 108465,
-  136: 176496,
-  137: 171018,
-  138: 118193,
-  139: 35507,
-  140: 100240,
-  141: 11061,
-  142: 30,
-  143: 433,
-  144: 431,
-  145: 572,
-  146: 572,
-  147: 513,
-  148: 13371,
-  149: 1393,
-  150: 437,
-  151: 9251,
-  152: 4898,
-  153: 7785,
-  154: 6594,
-  155: 9617,
-  156: 20951,
-  157: 108660,
-  158: 118586,
-  159: 131593,
-  160: 139587,
-  161: 130010,
-  162: 130010,
-  163: 171018,
-  164: 131586,
-  165: 156822,
-  166: 177709,
-  167: 120987,
-  168: 101340,
-  169: 1429,
-  170: 431,
-  171: 578,
-  172: 3519,
-  173: 2966,
-  174: 101921,
-  175: 118193,
-  176: 116738,
-  177: 23273,
-  178: 437,
-  179: 515,
-  180: 521,
-  181: 3002,
+  118: 114137,
+  119: 145064,
+  120: 150672,
+  121: 12189,
   182: 7785,
-  183: 10174,
+  183: 6594,
   184: 457,
-  185: 103220,
-  186: 35790,
-  187: 4714,
-  188: 3546,
-  189: 1250,
-  190: 486,
-  191: 1412,
-  192: 100240,
-  193: 118465,
-  194: 120794,
-  195: 118586,
-  196: 118586,
-  197: 130942,
-  198: 131586,
-  199: 116738,
+  185: 4081,
+  186: 3002,
+  187: 1210,
+  188: 521,
+  189: 227,
+  190: 247,
+  191: 486,
+  192: 37779,
+  193: 40614,
+  194: 40879,
+  195: 41025,
+  196: 49587,
+  197: 46095,
+  198: 49596,
+  199: 44511,
   200: 7785,
-  201: 6594,
-  202: 8029,
-  203: 8247,
-  204: 10680,
-  205: 934,
-  206: 5678,
-  207: 7219,
+  201: 7724,
+  202: 7647,
+  203: 9002,
+  204: 9179,
+  205: 375,
+  206: 5244,
+  207: 6444,
   208: 9919,
   209: 121,
-  210: 146065,
-  211: 146523,
-  212: 147103,
-  213: 155630,
-  214: 171018,
-  215: 21459,
-  216: 101922,
-  217: 125368,
-  218: 162897,
-  219: 153518,
-  220: 108569,
-  221: 10087,
-  222: 513,
-  223: 3592,
-  224: 5313,
-  225: 107349,
-  226: 100416,
-  227: 105385,
-  228: 100914,
-  229: 104195,
+  210: 52034,
+  211: 54702,
+  212: 52046,
+  213: 54851,
+  214: 52701,
+  215: 54787,
+  216: 55701,
+  217: 49220,
+  218: 57334,
+  219: 54857,
+  220: 36278,
+  221: 777,
+  222: 242,
+  223: 1706,
+  224: 4087,
+  225: 38668,
+  226: 98399,
+  227: 38680,
+  228: 36413,
+  229: 38474,
   230: 13125,
 };
 
-const CATEGORIES = [
-  { key:"plot",            label:"Plot",             icon:"📖" },
-  { key:"characters",      label:"Characters",       icon:"👥" },
-  { key:"worldBuilding",   label:"World Building",   icon:"🌍" },
-  { key:"animation",       label:"Animation",        icon:"🎨" },
-  { key:"soundtrack",      label:"Soundtrack",       icon:"🎵" },
-  { key:"enjoyment",       label:"Enjoyment",        icon:"😄" },
-  { key:"pacing",          label:"Pacing",           icon:"⚡" },
-  { key:"emotionalImpact", label:"Emotional Impact", icon:"💫" },
-];
-
-const ALL_GENRES = ["All",...[...new Set(ANIME_DATA.flatMap(a=>a.genres))].sort()];
-
-// ─── IMAGE STORE — instant pre-computed CDN URLs (no API calls needed) ──────────
-// AniList cover images follow a predictable CDN pattern:
-// https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/b{anilistId}.jpg
-// We build the full map once at startup — zero network requests, instant display.
-
-// ── IMAGE SYSTEM: Live AniList GraphQL fetch in batches ──────────────────────
-// Fetches real poster URLs from AniList public API (no key needed).
-// Loads in batches of 50 so the page shows images progressively.
+// ── IMAGE SYSTEM: Jikan (MAL) API — works from any browser, no CORS issues ──
+// Fetches real poster images from MyAnimeList via Jikan public API.
+// Loads one at a time so posters appear progressively as they load in.
 
 const imageStore = {
   images: {},
@@ -1092,46 +1014,32 @@ function notifyImageListeners() {
   imageStore.listeners.forEach(fn => fn());
 }
 
-async function fetchImageBatch(pairs) {
-  // pairs = [{appId, anilistId}, ...]
-  const ids = pairs.map(p => p.anilistId);
-  const query = `query($ids:[Int]){Media:Page(perPage:50){media(id_in:$ids,type:ANIME){id coverImage{large}}}}`;
+// Fetch a single anime image from Jikan
+async function fetchOneImage(appId, malId) {
   try {
-    const res = await fetch('https://graphql.anilist.co', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ query, variables: { ids } }),
-    });
+    const res = await fetch(`https://api.jikan.moe/v4/anime/${malId}`);
+    if (!res.ok) return;
     const json = await res.json();
-    const mediaList = json?.data?.Media?.media || [];
-    const byAnilistId = {};
-    mediaList.forEach(m => { byAnilistId[m.id] = m.coverImage?.large; });
-    pairs.forEach(({ appId, anilistId }) => {
-      const url = byAnilistId[anilistId];
-      if (url) imageStore.images[String(appId)] = url;
-    });
-  } catch(e) {
-    // Network error — images will show fallback SVG
-  }
+    const url = json?.data?.images?.jpg?.large_image_url
+              || json?.data?.images?.jpg?.image_url;
+    if (url) {
+      imageStore.images[String(appId)] = url;
+      notifyImageListeners();
+    }
+  } catch(e) {}
 }
 
+// Load all images with a small delay between each to respect rate limits
 async function loadAllImages() {
   if (imageStore.status !== "idle") return;
   imageStore.status = "loading";
 
-  const pairs = Object.entries(ANILIST_IDS).map(([appId, anilistId]) => ({
-    appId: String(appId),
-    anilistId: Number(anilistId),
-  }));
-
-  // Batch into groups of 50
-  const BATCH = 50;
-  for (let i = 0; i < pairs.length; i += BATCH) {
-    await fetchImageBatch(pairs.slice(i, i + BATCH));
-    notifyImageListeners(); // update UI after each batch
-    if (i + BATCH < pairs.length) {
-      await new Promise(r => setTimeout(r, 350)); // small delay between batches
-    }
+  const entries = Object.entries(MAL_IDS);
+  for (let i = 0; i < entries.length; i++) {
+    const [appId, malId] = entries[i];
+    await fetchOneImage(appId, malId);
+    // Jikan allows ~3 req/sec — 350ms between requests is safe
+    await new Promise(r => setTimeout(r, 350));
   }
 
   imageStore.status = "done";
@@ -1147,6 +1055,7 @@ function useImages() {
   }, []);
   return imageStore.images;
 }
+
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function getScoreColor(score) {
@@ -2552,6 +2461,12 @@ function App() {
   const [user, setUser] = useState(null);
   const [showSignIn, setShowSignIn] = useState(false);
   const images = useImages();
+  const [imageLoadingStatus, setImageLoadingStatus] = React.useState(imageStore.status);
+  React.useEffect(() => {
+    const update = () => setImageLoadingStatus(imageStore.status);
+    imageStore.listeners.add(update);
+    return () => imageStore.listeners.delete(update);
+  }, []);
 
   const addToList = a => { if(!watchlist.find(x=>x.id===a.id)) setWatchlist(l=>[...l,a]); };
   const removeFromList = id => setWatchlist(l=>l.filter(a=>a.id!==id));
@@ -2592,6 +2507,25 @@ function App() {
         .page-wrap{padding:36px 28px;max-width:1320px;margin:0 auto;}
       `}</style>
       <Navbar page={page} setPage={setPage} listCount={watchlist.length} user={user} onShowSignIn={()=>setShowSignIn(true)} onSignOut={()=>setUser(null)}/>
+      {/* Image loading toast */}
+      {imageLoadingStatus === "loading" && (
+        <div style={{
+          position:"fixed",bottom:20,right:20,zIndex:999,
+          background:"rgba(7,0,26,0.95)",
+          border:"1px solid rgba(107,53,184,0.4)",
+          borderRadius:12,padding:"10px 16px",
+          display:"flex",alignItems:"center",gap:10,
+          boxShadow:"0 8px 30px rgba(0,0,0,0.5)",
+          backdropFilter:"blur(12px)"}}>
+          <div style={{width:14,height:14,border:"2px solid rgba(107,53,184,0.3)",
+            borderTopColor:"#9B55E0",borderRadius:"50%",
+            animation:"spin 0.8s linear infinite",flexShrink:0}}/>
+          <span style={{color:"rgba(255,255,255,0.6)",fontSize:12,
+            fontFamily:"'DM Sans',sans-serif"}}>
+            Loading posters…
+          </span>
+        </div>
+      )}
       {page==="home"    && <HomePage    {...sharedProps} userRatings={userRatings}/>}
       {page==="explore" && <ExplorePage {...sharedProps}/>}
       {page==="top"     && <TopAnimePage {...sharedProps}/>}
