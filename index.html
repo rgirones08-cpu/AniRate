@@ -1213,6 +1213,26 @@ function getAnimeVisual(anime) {
   return ANIME_VISUALS[anime.id] || ["135deg,#6B35B8,#9B55E0","#9966FF","🎬","ANIME"];
 }
 
+// ─── RATING CATEGORIES ────────────────────────────────────────────────────────
+const CATEGORIES = [
+  { key:"plot",            label:"Plot",             icon:"📖" },
+  { key:"characters",      label:"Characters",       icon:"👥" },
+  { key:"worldBuilding",   label:"World Building",   icon:"🌍" },
+  { key:"animation",       label:"Animation",        icon:"🎨" },
+  { key:"soundtrack",      label:"Soundtrack",       icon:"🎵" },
+  { key:"enjoyment",       label:"Enjoyment",        icon:"😄" },
+  { key:"pacing",          label:"Pacing",           icon:"⏱️" },
+  { key:"emotionalImpact", label:"Emotional Impact", icon:"💔" },
+];
+
+// ─── GENRE LIST ───────────────────────────────────────────────────────────────
+const ALL_GENRES = [
+  "All","Action","Adventure","Comedy","Drama","Fantasy","Horror","Mecha","Music",
+  "Mystery","Psychological","Romance","Sci-Fi","Slice of Life","Sports","Supernatural",
+  "Thriller","Historical","Dark Fantasy","Isekai","Martial Arts","Magical Girl",
+  "Cyberpunk","School","Shounen",
+];
+
 // ─── RECOMMENDATION ENGINE ───────────────────────────────────────────────────
 // Computes similarity between two anime based on genre overlap + rating category
 // profile similarity. Returns a score 0-1.
