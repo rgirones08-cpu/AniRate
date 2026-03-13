@@ -1233,6 +1233,74 @@ const ALL_GENRES = [
   "Cyberpunk","School","Shounen",
 ];
 
+// ─── GOOGLE SHEETS CONFIG ────────────────────────────────────────────────────
+// Paste your deployed Apps Script Web App URL here after setup:
+const SHEETS_URL = "YOUR_APPS_SCRIPT_URL_HERE";
+
+// ─── SHEETS API ───────────────────────────────────────────────────────────────
+// Fetch all saved ratings from Google Sheets on load
+async function fetchRatingsFromSheets() {
+  if (!SHEETS_URL || SHEETS_URL === "YOUR_APPS_SCRIPT_URL_HERE") return [];
+  try {
+    const res = await fetch(SHEETS_URL + "?action=get");
+    if (!res.ok) return [];
+    const json = await res.json();
+    if (!json.ratings) return [];
+    // Re-hydrate: match animeId back to full anime object
+    return json.ratings.map(row => {
+      const anime = ANIME_DATA.find(a => a.id === row.animeId);
+      if (!anime) return null;
+      return {
+        anime,
+        ratings: {
+          plot:            row.plotRating,
+          characters:      row.charactersRating,
+          worldBuilding:   row.worldBuildingRating,
+          animation:       row.animationRating,
+          soundtrack:      row.soundtrackRating,
+          enjoyment:       row.enjoymentRating,
+          pacing:          row.pacingRating,
+          emotionalImpact: row.emotionalImpactRating,
+        },
+        overall: row.overallScore,
+        timestamp: row.timestamp,
+      };
+    }).filter(Boolean);
+  } catch(e) {
+    console.warn("Could not fetch from Sheets:", e);
+    return [];
+  }
+}
+
+// Save a single rating to Google Sheets
+async function saveRatingToSheets(data) {
+  if (!SHEETS_URL || SHEETS_URL === "YOUR_APPS_SCRIPT_URL_HERE") return;
+  try {
+    const body = {
+      action: "save",
+      animeId:              data.anime.id,
+      animeTitle:           data.anime.title,
+      plotRating:           data.ratings.plot,
+      charactersRating:     data.ratings.characters,
+      worldBuildingRating:  data.ratings.worldBuilding,
+      animationRating:      data.ratings.animation,
+      soundtrackRating:     data.ratings.soundtrack,
+      enjoymentRating:      data.ratings.enjoyment,
+      pacingRating:         data.ratings.pacing,
+      emotionalImpactRating:data.ratings.emotionalImpact,
+      overallScore:         data.overall,
+      timestamp:            new Date().toISOString(),
+    };
+    await fetch(SHEETS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" }, // avoid CORS preflight
+      body: JSON.stringify(body),
+    });
+  } catch(e) {
+    console.warn("Could not save to Sheets:", e);
+  }
+}
+
 // ─── RECOMMENDATION ENGINE ───────────────────────────────────────────────────
 // Computes similarity between two anime based on genre overlap + rating category
 // profile similarity. Returns a score 0-1.
@@ -2480,6 +2548,9 @@ function App() {
   const [userRatings, setUserRatings] = useState([]);
   const [user, setUser] = useState(null);
   const [showSignIn, setShowSignIn] = useState(false);
+  const [sheetsLoading, setSheetsLoading] = useState(false);
+  const [sheetsSaving, setSheetsSaving] = useState(false);
+  const [sheetsError, setSheetsError] = useState(null);
   const images = useImages();
   const [imageLoadingStatus, setImageLoadingStatus] = React.useState(imageStore.status);
   React.useEffect(() => {
@@ -2488,15 +2559,45 @@ function App() {
     return () => imageStore.listeners.delete(update);
   }, []);
 
+  // ── Load saved ratings from Google Sheets on startup ──────────────────────
+  React.useEffect(() => {
+    if (!SHEETS_URL || SHEETS_URL === "YOUR_APPS_SCRIPT_URL_HERE") return;
+    setSheetsLoading(true);
+    setSheetsError(null);
+    fetchRatingsFromSheets()
+      .then(loaded => {
+        if (loaded.length > 0) {
+          setUserRatings(loaded);
+          setWatchlist(loaded.map(r => r.anime));
+        }
+      })
+      .catch(() => setSheetsError("Could not load saved ratings."))
+      .finally(() => setSheetsLoading(false));
+  }, []);
+
   const addToList = a => { if(!watchlist.find(x=>x.id===a.id)) setWatchlist(l=>[...l,a]); };
   const removeFromList = id => setWatchlist(l=>l.filter(a=>a.id!==id));
-  const handleRatingSubmit = data => {
+
+  const handleRatingSubmit = async data => {
+    // Update local state immediately for snappy UX
     setUserRatings(r=>{
       const i=r.findIndex(x=>x.anime.id===data.anime.id);
       if(i>=0){const n=[...r];n[i]=data;return n;}
       return [...r,data];
     });
     addToList(data.anime);
+    // Persist to Google Sheets in the background
+    if (SHEETS_URL && SHEETS_URL !== "YOUR_APPS_SCRIPT_URL_HERE") {
+      setSheetsSaving(true);
+      setSheetsError(null);
+      try {
+        await saveRatingToSheets(data);
+      } catch(e) {
+        setSheetsError("Saved locally but cloud sync failed.");
+      } finally {
+        setSheetsSaving(false);
+      }
+    }
   };
 
   const sharedProps = { setPage, setRatingAnime, watchlist, addToList, images };
@@ -2527,25 +2628,47 @@ function App() {
         .page-wrap{padding:36px 28px;max-width:1320px;margin:0 auto;}
       `}</style>
       <Navbar page={page} setPage={setPage} listCount={watchlist.length} user={user} onShowSignIn={()=>setShowSignIn(true)} onSignOut={()=>setUser(null)}/>
-      {/* Image loading toast */}
-      {imageLoadingStatus === "loading" && (
-        <div style={{
-          position:"fixed",bottom:20,right:20,zIndex:999,
-          background:"rgba(7,0,26,0.95)",
-          border:"1px solid rgba(107,53,184,0.4)",
-          borderRadius:12,padding:"10px 16px",
-          display:"flex",alignItems:"center",gap:10,
-          boxShadow:"0 8px 30px rgba(0,0,0,0.5)",
-          backdropFilter:"blur(12px)"}}>
-          <div style={{width:14,height:14,border:"2px solid rgba(107,53,184,0.3)",
-            borderTopColor:"#9B55E0",borderRadius:"50%",
-            animation:"spin 0.8s linear infinite",flexShrink:0}}/>
-          <span style={{color:"rgba(255,255,255,0.6)",fontSize:12,
-            fontFamily:"'DM Sans',sans-serif"}}>
-            Loading posters…
-          </span>
-        </div>
-      )}
+
+      {/* ── Sheets status toasts (bottom-right stack) ── */}
+      <div style={{position:"fixed",bottom:20,right:20,zIndex:999,display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end",pointerEvents:"none"}}>
+        {/* Image loading */}
+        {imageLoadingStatus === "loading" && (
+          <div style={{background:"rgba(7,0,26,0.95)",border:"1px solid rgba(107,53,184,0.4)",borderRadius:12,padding:"10px 16px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 8px 30px rgba(0,0,0,0.5)",backdropFilter:"blur(12px)"}}>
+            <div style={{width:14,height:14,border:"2px solid rgba(107,53,184,0.3)",borderTopColor:"#9B55E0",borderRadius:"50%",animation:"spin 0.8s linear infinite",flexShrink:0}}/>
+            <span style={{color:"rgba(255,255,255,0.6)",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>Loading posters…</span>
+          </div>
+        )}
+        {/* Sheets loading */}
+        {sheetsLoading && (
+          <div style={{background:"rgba(7,0,26,0.95)",border:"1px solid rgba(0,229,204,0.35)",borderRadius:12,padding:"10px 16px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 8px 30px rgba(0,0,0,0.5)",backdropFilter:"blur(12px)"}}>
+            <div style={{width:14,height:14,border:"2px solid rgba(0,229,204,0.2)",borderTopColor:"#00E5CC",borderRadius:"50%",animation:"spin 0.8s linear infinite",flexShrink:0}}/>
+            <span style={{color:"rgba(0,229,204,0.8)",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>Syncing ratings…</span>
+          </div>
+        )}
+        {/* Sheets saving */}
+        {sheetsSaving && (
+          <div style={{background:"rgba(7,0,26,0.95)",border:"1px solid rgba(245,166,35,0.35)",borderRadius:12,padding:"10px 16px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 8px 30px rgba(0,0,0,0.5)",backdropFilter:"blur(12px)"}}>
+            <div style={{width:14,height:14,border:"2px solid rgba(245,166,35,0.2)",borderTopColor:"#F5A623",borderRadius:"50%",animation:"spin 0.8s linear infinite",flexShrink:0}}/>
+            <span style={{color:"rgba(245,166,35,0.8)",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>Saving to cloud…</span>
+          </div>
+        )}
+        {/* Error */}
+        {sheetsError && (
+          <div style={{background:"rgba(7,0,26,0.95)",border:"1px solid rgba(255,80,80,0.35)",borderRadius:12,padding:"10px 16px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 8px 30px rgba(0,0,0,0.5)",backdropFilter:"blur(12px)",pointerEvents:"all"}}>
+            <span style={{fontSize:13}}>⚠️</span>
+            <span style={{color:"rgba(255,120,120,0.9)",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>{sheetsError}</span>
+            <button onClick={()=>setSheetsError(null)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.3)",cursor:"pointer",fontSize:13,padding:"0 0 0 4px",pointerEvents:"all"}}>✕</button>
+          </div>
+        )}
+        {/* URL not configured notice */}
+        {SHEETS_URL === "YOUR_APPS_SCRIPT_URL_HERE" && (
+          <div style={{background:"rgba(7,0,26,0.92)",border:"1px solid rgba(107,53,184,0.3)",borderRadius:12,padding:"9px 14px",display:"flex",alignItems:"center",gap:8,boxShadow:"0 4px 20px rgba(0,0,0,0.4)",backdropFilter:"blur(12px)",maxWidth:260}}>
+            <span style={{fontSize:13}}>☁️</span>
+            <span style={{color:"rgba(255,255,255,0.35)",fontSize:11,fontFamily:"'DM Sans',sans-serif",lineHeight:1.4}}>Cloud sync not configured — see setup guide</span>
+          </div>
+        )}
+      </div>
+
       {page==="home"    && <HomePage    {...sharedProps} userRatings={userRatings}/>}
       {page==="explore" && <ExplorePage {...sharedProps}/>}
       {page==="top"     && <TopAnimePage {...sharedProps}/>}
