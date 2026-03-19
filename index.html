@@ -1756,7 +1756,7 @@ function SignInModal({ onClose, onSignIn }) {
   const handleSubmit = async () => {
     if (!username.trim()) { setError("Username is required"); return; }
     if (!password.trim()) { setError("Password is required"); return; }
-    if (username.trim() !== ACCOUNT.username || password !== ACCOUNT.password) {
+    if (username.trim().toLowerCase() !== ACCOUNT.username.toLowerCase() || password !== ACCOUNT.password) {
       setError("Incorrect username or password"); return;
     }
     setLoading(true);
