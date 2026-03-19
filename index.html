@@ -1235,17 +1235,22 @@ const ALL_GENRES = [
 
 // ─── GOOGLE SHEETS CLOUD SYNC ────────────────────────────────────────────────
 // Paste your Apps Script Web App URL below.
-// ── localStorage persistence ──────────────────────────────────────────────────
-const LS_RATINGS_KEY  = "anirate_ratings";
+// ── Shared account credentials (one account for all devices) ─────────────────
+const ACCOUNT = { username: "Rodrigo", password: "anirate2024" };
+
+// ── Google Sheets URL ─────────────────────────────────────────────────────────
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbyuNrOGUKE4ycpmcb9kVrtVLSCtrqSBWkXL3sFnzogevvGP6LZ-tSAKfOxEn0Y9H-g/exec";
+
+// ── localStorage cache keys ───────────────────────────────────────────────────
+const LS_RATINGS_KEY   = "anirate_ratings";
 const LS_WATCHLIST_KEY = "anirate_watchlist";
 
+// ── Load from local cache (used while Sheets is fetching) ─────────────────────
 function loadRatingsFromStorage() {
   try {
     const raw = localStorage.getItem(LS_RATINGS_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    // Re-hydrate anime objects from ANIME_DATA by id
-    return parsed.map(r => {
+    return JSON.parse(raw).map(r => {
       const anime = ANIME_DATA.find(a => a.id === r.animeId);
       if (!anime) return null;
       return { anime, ratings: r.ratings, overall: r.overall, timestamp: r.timestamp };
@@ -1253,35 +1258,85 @@ function loadRatingsFromStorage() {
   } catch(e) { return []; }
 }
 
-function saveRatingToStorage(data) {
+function saveRatingToLocalCache(data) {
   try {
     const existing = JSON.parse(localStorage.getItem(LS_RATINGS_KEY) || "[]");
     const idx = existing.findIndex(r => r.animeId === data.anime.id);
-    const entry = {
-      animeId:   data.anime.id,
-      ratings:   data.ratings,
-      overall:   data.overall,
-      timestamp: data.timestamp || new Date().toISOString(),
-    };
-    if (idx >= 0) existing[idx] = entry;
-    else existing.push(entry);
+    const entry = { animeId: data.anime.id, ratings: data.ratings,
+                    overall: data.overall, timestamp: data.timestamp || new Date().toISOString() };
+    if (idx >= 0) existing[idx] = entry; else existing.push(entry);
     localStorage.setItem(LS_RATINGS_KEY, JSON.stringify(existing));
-  } catch(e) { console.warn("Storage save failed:", e); }
-}
-
-function loadWatchlistFromStorage() {
-  try {
-    const raw = localStorage.getItem(LS_WATCHLIST_KEY);
-    if (!raw) return [];
-    const ids = JSON.parse(raw);
-    return ids.map(id => ANIME_DATA.find(a => a.id === id)).filter(Boolean);
-  } catch(e) { return []; }
+  } catch(e) {}
 }
 
 function saveWatchlistToStorage(watchlist) {
   try {
     localStorage.setItem(LS_WATCHLIST_KEY, JSON.stringify(watchlist.map(a => a.id)));
   } catch(e) {}
+}
+
+function clearLocalCache() {
+  try {
+    localStorage.removeItem(LS_RATINGS_KEY);
+    localStorage.removeItem(LS_WATCHLIST_KEY);
+  } catch(e) {}
+}
+
+// ── Fetch all ratings from Google Sheets ─────────────────────────────────────
+async function fetchRatingsFromSheets() {
+  try {
+    const res = await fetch(SHEETS_URL + "?action=get", { redirect: "follow" });
+    const text = await res.text();
+    const json = JSON.parse(text);
+    if (!json || !json.ratings) return [];
+    return json.ratings.map(row => {
+      const anime = ANIME_DATA.find(a => a.id === Number(row.animeId));
+      if (!anime) return null;
+      return {
+        anime,
+        ratings: {
+          plot:            Number(row.plotRating)            || 5,
+          characters:      Number(row.charactersRating)      || 5,
+          worldBuilding:   Number(row.worldBuildingRating)   || 5,
+          animation:       Number(row.animationRating)       || 5,
+          soundtrack:      Number(row.soundtrackRating)      || 5,
+          enjoyment:       Number(row.enjoymentRating)       || 5,
+          pacing:          Number(row.pacingRating)          || 5,
+          emotionalImpact: Number(row.emotionalImpactRating) || 5,
+        },
+        overall:   Number(row.overallScore) || 5,
+        timestamp: row.timestamp || "",
+      };
+    }).filter(Boolean);
+  } catch(e) {
+    console.warn("Sheets fetch failed:", e.message);
+    return null; // null = network error, fall back to cache
+  }
+}
+
+// ── Save one rating to Google Sheets ─────────────────────────────────────────
+async function saveRatingToSheets(data) {
+  try {
+    await fetch(SHEETS_URL, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        action:                "save",
+        animeId:               data.anime.id,
+        animeTitle:            data.anime.title,
+        plotRating:            data.ratings.plot,
+        charactersRating:      data.ratings.characters,
+        worldBuildingRating:   data.ratings.worldBuilding,
+        animationRating:       data.ratings.animation,
+        soundtrackRating:      data.ratings.soundtrack,
+        enjoymentRating:       data.ratings.enjoyment,
+        pacingRating:          data.ratings.pacing,
+        emotionalImpactRating: data.ratings.emotionalImpact,
+        overallScore:          data.overall,
+        timestamp:             new Date().toISOString(),
+      }),
+    });
+  } catch(e) { console.warn("Sheets save failed:", e.message); }
 }
 
 // ─── RECOMMENDATION ENGINE ───────────────────────────────────────────────────
@@ -1690,21 +1745,23 @@ function SearchBar({ value, onChange }) {
 // ─── NAVBAR ───────────────────────────────────────────────────────────────────
 // ─── SIGN IN MODAL ────────────────────────────────────────────────────────────
 function SignInModal({ onClose, onSignIn }) {
-  const [tab, setTab]           = React.useState("signin");
   const [username, setUsername] = React.useState("");
-  const [email, setEmail]       = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError]       = React.useState("");
+  const [loading, setLoading]   = React.useState(false);
 
   const avatarColors = ["#6B35B8","#F5A623","#00E5CC","#E040FB","#FF5252","#00BCD4"];
   const getColor = name => avatarColors[name.charCodeAt(0) % avatarColors.length];
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!username.trim()) { setError("Username is required"); return; }
     if (!password.trim()) { setError("Password is required"); return; }
-    if (tab === "signup" && !email.trim()) { setError("Email is required"); return; }
-    onSignIn({ username: username.trim(), email: email.trim(), color: getColor(username.trim()) });
-    onClose();
+    if (username.trim() !== ACCOUNT.username || password !== ACCOUNT.password) {
+      setError("Incorrect username or password"); return;
+    }
+    setLoading(true);
+    await onSignIn({ username: ACCOUNT.username, color: getColor(ACCOUNT.username) });
+    setLoading(false);
   };
 
   return (
@@ -1734,23 +1791,11 @@ function SignInModal({ onClose, onSignIn }) {
             </button>
           </div>
           <h2 style={{margin:"0 0 5px",fontFamily:"'Bebas Neue',sans-serif",fontSize:30,letterSpacing:"2px",color:"white"}}>
-            {tab==="signin" ? "Welcome Back" : "Join AniRate"}
+            Welcome Back
           </h2>
-          <p style={{margin:"0 0 18px",color:"rgba(255,255,255,0.35)",fontSize:13,fontFamily:"'DM Sans',sans-serif"}}>
-            {tab==="signin" ? "Sign in to track your anime journey" : "Create your free account today"}
+          <p style={{margin:"0 0 20px",color:"rgba(255,255,255,0.35)",fontSize:13,fontFamily:"'DM Sans',sans-serif"}}>
+            Sign in to sync your ratings across all devices
           </p>
-          <div style={{display:"flex",gap:0,borderBottom:"1px solid rgba(107,53,184,0.2)"}}>
-            {["signin","signup"].map(t=>(
-              <button key={t} onClick={()=>{setTab(t);setError("");}}
-                style={{flex:1,padding:"9px 0",background:"transparent",border:"none",cursor:"pointer",
-                  fontFamily:"'DM Sans',sans-serif",fontSize:13.5,fontWeight:600,
-                  color:tab===t?"#FFD700":"rgba(255,255,255,0.35)",
-                  borderBottom:tab===t?"2px solid #FFD700":"2px solid transparent",
-                  transition:"all 0.18s",letterSpacing:"0.3px"}}>
-                {t==="signin" ? "Sign In" : "Sign Up"}
-              </button>
-            ))}
-          </div>
         </div>
         <div style={{padding:"22px 28px 28px"}}>
           {error && (
@@ -1766,25 +1811,12 @@ function SignInModal({ onClose, onSignIn }) {
                 fontFamily:"'DM Sans',sans-serif",fontWeight:700,letterSpacing:"1px",
                 textTransform:"uppercase",marginBottom:6}}>Username</label>
               <input value={username} onChange={e=>setUsername(e.target.value)}
-                placeholder="e.g. SailorFan99"
+                placeholder="Username"
                 onKeyDown={e=>e.key==="Enter"&&handleSubmit()}
                 style={{width:"100%",padding:"11px 14px",borderRadius:10,
                   background:"rgba(255,255,255,0.06)",border:"1px solid rgba(107,53,184,0.35)",
                   color:"white",fontSize:14,fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
             </div>
-            {tab==="signup" && (
-              <div>
-                <label style={{display:"block",color:"rgba(255,255,255,0.4)",fontSize:11,
-                  fontFamily:"'DM Sans',sans-serif",fontWeight:700,letterSpacing:"1px",
-                  textTransform:"uppercase",marginBottom:6}}>Email</label>
-                <input value={email} onChange={e=>setEmail(e.target.value)}
-                  placeholder="your@email.com" type="email"
-                  onKeyDown={e=>e.key==="Enter"&&handleSubmit()}
-                  style={{width:"100%",padding:"11px 14px",borderRadius:10,
-                    background:"rgba(255,255,255,0.06)",border:"1px solid rgba(107,53,184,0.35)",
-                    color:"white",fontSize:14,fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
-              </div>
-            )}
             <div>
               <label style={{display:"block",color:"rgba(255,255,255,0.4)",fontSize:11,
                 fontFamily:"'DM Sans',sans-serif",fontWeight:700,letterSpacing:"1px",
@@ -1796,22 +1828,15 @@ function SignInModal({ onClose, onSignIn }) {
                   background:"rgba(255,255,255,0.06)",border:"1px solid rgba(107,53,184,0.35)",
                   color:"white",fontSize:14,fontFamily:"'DM Sans',sans-serif",boxSizing:"border-box"}}/>
             </div>
-            <button onClick={handleSubmit}
+            <button onClick={handleSubmit} disabled={loading}
               style={{marginTop:4,padding:"13px",borderRadius:12,border:"none",
-                background:"linear-gradient(135deg,#F5A623,#FFD700)",
-                color:"#03000a",fontWeight:800,fontSize:15,cursor:"pointer",
+                background:loading?"rgba(245,166,35,0.5)":"linear-gradient(135deg,#F5A623,#FFD700)",
+                color:"#03000a",fontWeight:800,fontSize:15,cursor:loading?"default":"pointer",
                 fontFamily:"'DM Sans',sans-serif",
                 boxShadow:"0 4px 24px rgba(245,166,35,0.45)",letterSpacing:"0.3px"}}>
-              {tab==="signin" ? "Sign In →" : "Create Account →"}
+              {loading ? "Syncing ratings…" : "Sign In →"}
             </button>
           </div>
-          <p style={{margin:"14px 0 0",textAlign:"center",color:"rgba(255,255,255,0.22)",
-            fontSize:11.5,fontFamily:"'DM Sans',sans-serif",lineHeight:1.6}}>
-            {tab==="signin"
-              ? React.createElement("span",null,"No account? ",React.createElement("span",{onClick:()=>setTab("signup"),style:{color:"rgba(155,85,224,0.8)",cursor:"pointer",fontWeight:600}},"Sign up free"))
-              : React.createElement("span",null,"Already have one? ",React.createElement("span",{onClick:()=>setTab("signin"),style:{color:"rgba(155,85,224,0.8)",cursor:"pointer",fontWeight:600}},"Sign in"))
-            }
-          </p>
         </div>
       </div>
     </div>
@@ -2697,10 +2722,11 @@ function AboutPage() {
 function App() {
   const [page, setPage] = useState("home");
   const [ratingAnime, setRatingAnime] = useState(null);
-  const [watchlist, setWatchlist] = useState(() => loadWatchlistFromStorage());
-  const [userRatings, setUserRatings] = useState(() => loadRatingsFromStorage());
+  const [watchlist, setWatchlist] = useState([]);
+  const [userRatings, setUserRatings] = useState([]);
   const [user, setUser] = useState(null);
   const [showSignIn, setShowSignIn] = useState(false);
+  const [syncStatus, setSyncStatus] = useState("idle"); // idle | loading | saving | error
   const images = useImages();
   const [imageLoadingStatus, setImageLoadingStatus] = React.useState(imageStore.status);
   React.useEffect(() => {
@@ -2709,22 +2735,57 @@ function App() {
     return () => imageStore.listeners.delete(update);
   }, []);
 
-  // ── Persist watchlist whenever it changes ────────────────────────────────
+  // ── Persist watchlist to localStorage cache ───────────────────────────────
   React.useEffect(() => {
     saveWatchlistToStorage(watchlist);
   }, [watchlist]);
 
+  // ── Load ratings when user signs in ──────────────────────────────────────
+  const handleSignIn = async (u) => {
+    setUser(u);
+    setShowSignIn(false);
+    // First load from local cache for instant display
+    const cached = loadRatingsFromStorage();
+    if (cached.length > 0) {
+      setUserRatings(cached);
+      setWatchlist(cached.map(r => r.anime));
+    }
+    // Then fetch fresh data from Sheets (overwrites cache if successful)
+    setSyncStatus("loading");
+    const fresh = await fetchRatingsFromSheets();
+    if (fresh !== null && fresh.length > 0) {
+      setUserRatings(fresh);
+      setWatchlist(fresh.map(r => r.anime));
+      // Update local cache with fresh data
+      fresh.forEach(r => saveRatingToLocalCache(r));
+    }
+    setSyncStatus("idle");
+  };
+
+  // ── Sign out — clear everything ───────────────────────────────────────────
+  const handleSignOut = () => {
+    setUser(null);
+    setUserRatings([]);
+    setWatchlist([]);
+    clearLocalCache();
+  };
+
   const addToList = a => { if(!watchlist.find(x=>x.id===a.id)) setWatchlist(l=>[...l,a]); };
   const removeFromList = id => setWatchlist(l=>l.filter(a=>a.id!==id));
 
-  const handleRatingSubmit = data => {
+  const handleRatingSubmit = async data => {
+    // Update UI instantly
     setUserRatings(r=>{
       const i=r.findIndex(x=>x.anime.id===data.anime.id);
       if(i>=0){const n=[...r];n[i]=data;return n;}
       return [...r,data];
     });
     addToList(data.anime);
-    saveRatingToStorage(data); // save to localStorage instantly
+    saveRatingToLocalCache(data); // cache locally
+    // Save to Sheets in background
+    setSyncStatus("saving");
+    await saveRatingToSheets(data);
+    setSyncStatus("idle");
   };
 
   const sharedProps = { setPage, setRatingAnime, watchlist, addToList, images };
@@ -2734,7 +2795,7 @@ function App() {
       {showSignIn && (
         <SignInModal
           onClose={()=>setShowSignIn(false)}
-          onSignIn={u=>{ setUser(u); setShowSignIn(false); }}
+          onSignIn={handleSignIn}
         />
       )}
       <style>{`
@@ -2754,14 +2815,28 @@ function App() {
         .section-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(22px,3vw,30px);letter-spacing:2px;color:white;}
         .page-wrap{padding:36px 28px;max-width:1320px;margin:0 auto;}
       `}</style>
-      <Navbar page={page} setPage={setPage} listCount={watchlist.length} user={user} onShowSignIn={()=>setShowSignIn(true)} onSignOut={()=>setUser(null)}/>
-      {/* Image loading toast */}
-      {imageLoadingStatus === "loading" && (
-        <div style={{position:"fixed",bottom:20,right:20,zIndex:999,background:"rgba(7,0,26,0.95)",border:"1px solid rgba(107,53,184,0.4)",borderRadius:12,padding:"10px 16px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 8px 30px rgba(0,0,0,0.5)",backdropFilter:"blur(12px)"}}>
-          <div style={{width:14,height:14,border:"2px solid rgba(107,53,184,0.3)",borderTopColor:"#9B55E0",borderRadius:"50%",animation:"spin 0.8s linear infinite",flexShrink:0}}/>
-          <span style={{color:"rgba(255,255,255,0.6)",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>Loading posters…</span>
-        </div>
-      )}
+      <Navbar page={page} setPage={setPage} listCount={watchlist.length} user={user} onShowSignIn={()=>setShowSignIn(true)} onSignOut={handleSignOut}/>
+      {/* Status toasts */}
+      <div style={{position:"fixed",bottom:20,right:20,zIndex:999,display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end",pointerEvents:"none"}}>
+        {imageLoadingStatus === "loading" && (
+          <div style={{background:"rgba(7,0,26,0.95)",border:"1px solid rgba(107,53,184,0.4)",borderRadius:12,padding:"10px 16px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 8px 30px rgba(0,0,0,0.5)",backdropFilter:"blur(12px)"}}>
+            <div style={{width:14,height:14,border:"2px solid rgba(107,53,184,0.3)",borderTopColor:"#9B55E0",borderRadius:"50%",animation:"spin 0.8s linear infinite",flexShrink:0}}/>
+            <span style={{color:"rgba(255,255,255,0.6)",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>Loading posters…</span>
+          </div>
+        )}
+        {syncStatus === "loading" && (
+          <div style={{background:"rgba(7,0,26,0.95)",border:"1px solid rgba(0,229,204,0.4)",borderRadius:12,padding:"10px 16px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 8px 30px rgba(0,0,0,0.5)",backdropFilter:"blur(12px)"}}>
+            <div style={{width:14,height:14,border:"2px solid rgba(0,229,204,0.2)",borderTopColor:"#00E5CC",borderRadius:"50%",animation:"spin 0.8s linear infinite",flexShrink:0}}/>
+            <span style={{color:"rgba(0,229,204,0.85)",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>Syncing your ratings…</span>
+          </div>
+        )}
+        {syncStatus === "saving" && (
+          <div style={{background:"rgba(7,0,26,0.95)",border:"1px solid rgba(245,166,35,0.4)",borderRadius:12,padding:"10px 16px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 8px 30px rgba(0,0,0,0.5)",backdropFilter:"blur(12px)"}}>
+            <div style={{width:14,height:14,border:"2px solid rgba(245,166,35,0.2)",borderTopColor:"#F5A623",borderRadius:"50%",animation:"spin 0.8s linear infinite",flexShrink:0}}/>
+            <span style={{color:"rgba(245,166,35,0.85)",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>Saving to cloud…</span>
+          </div>
+        )}
+      </div>
       {page==="home"    && <HomePage    {...sharedProps} userRatings={userRatings}/>}
       {page==="explore" && <ExplorePage {...sharedProps}/>}
       {page==="top"     && <TopAnimePage {...sharedProps}/>}
