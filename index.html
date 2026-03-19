@@ -1236,7 +1236,7 @@ const ALL_GENRES = [
 // ─── GOOGLE SHEETS CLOUD SYNC ────────────────────────────────────────────────
 // Paste your Apps Script Web App URL below.
 // ── Shared account credentials (one account for all devices) ─────────────────
-const ACCOUNT = { username: "78366@ats.edu.mx", password: "25072008ats" };
+const ACCOUNT = { username: "anirate", password: "anime123" };
 
 // ── Google Sheets URL ─────────────────────────────────────────────────────────
 const SHEETS_URL = "https://script.google.com/macros/s/AKfycbyuNrOGUKE4ycpmcb9kVrtVLSCtrqSBWkXL3sFnzogevvGP6LZ-tSAKfOxEn0Y9H-g/exec";
@@ -1282,62 +1282,7 @@ function clearLocalCache() {
   } catch(e) {}
 }
 
-// ── Fetch all ratings from Google Sheets ─────────────────────────────────────
-async function fetchRatingsFromSheets() {
-  try {
-    const res = await fetch(SHEETS_URL + "?action=get", { redirect: "follow" });
-    const text = await res.text();
-    const json = JSON.parse(text);
-    if (!json || !json.ratings) return [];
-    return json.ratings.map(row => {
-      const anime = ANIME_DATA.find(a => a.id === Number(row.animeId));
-      if (!anime) return null;
-      return {
-        anime,
-        ratings: {
-          plot:            Number(row.plotRating)            || 5,
-          characters:      Number(row.charactersRating)      || 5,
-          worldBuilding:   Number(row.worldBuildingRating)   || 5,
-          animation:       Number(row.animationRating)       || 5,
-          soundtrack:      Number(row.soundtrackRating)      || 5,
-          enjoyment:       Number(row.enjoymentRating)       || 5,
-          pacing:          Number(row.pacingRating)          || 5,
-          emotionalImpact: Number(row.emotionalImpactRating) || 5,
-        },
-        overall:   Number(row.overallScore) || 5,
-        timestamp: row.timestamp || "",
-      };
-    }).filter(Boolean);
-  } catch(e) {
-    console.warn("Sheets fetch failed:", e.message);
-    return null; // null = network error, fall back to cache
-  }
-}
-
-// ── Save one rating to Google Sheets ─────────────────────────────────────────
-async function saveRatingToSheets(data) {
-  try {
-    await fetch(SHEETS_URL, {
-      method: "POST", mode: "no-cors",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({
-        action:                "save",
-        animeId:               data.anime.id,
-        animeTitle:            data.anime.title,
-        plotRating:            data.ratings.plot,
-        charactersRating:      data.ratings.characters,
-        worldBuildingRating:   data.ratings.worldBuilding,
-        animationRating:       data.ratings.animation,
-        soundtrackRating:      data.ratings.soundtrack,
-        enjoymentRating:       data.ratings.enjoyment,
-        pacingRating:          data.ratings.pacing,
-        emotionalImpactRating: data.ratings.emotionalImpact,
-        overallScore:          data.overall,
-        timestamp:             new Date().toISOString(),
-      }),
-    });
-  } catch(e) { console.warn("Sheets save failed:", e.message); }
-}
+// ── Sheets functions removed — localStorage handles all persistence ───────────
 
 // ─── RECOMMENDATION ENGINE ───────────────────────────────────────────────────
 // Computes similarity between two anime based on genre overlap + rating category
@@ -2726,7 +2671,6 @@ function App() {
   const [userRatings, setUserRatings] = useState([]);
   const [user, setUser] = useState(null);
   const [showSignIn, setShowSignIn] = useState(false);
-  const [syncStatus, setSyncStatus] = useState("idle"); // idle | loading | saving | error
   const images = useImages();
   const [imageLoadingStatus, setImageLoadingStatus] = React.useState(imageStore.status);
   React.useEffect(() => {
@@ -2741,25 +2685,15 @@ function App() {
   }, [watchlist]);
 
   // ── Load ratings when user signs in ──────────────────────────────────────
-  const handleSignIn = async (u) => {
+  const handleSignIn = (u) => {
     setUser(u);
     setShowSignIn(false);
-    // First load from local cache for instant display
+    // Load from localStorage cache
     const cached = loadRatingsFromStorage();
     if (cached.length > 0) {
       setUserRatings(cached);
       setWatchlist(cached.map(r => r.anime));
     }
-    // Then fetch fresh data from Sheets (overwrites cache if successful)
-    setSyncStatus("loading");
-    const fresh = await fetchRatingsFromSheets();
-    if (fresh !== null && fresh.length > 0) {
-      setUserRatings(fresh);
-      setWatchlist(fresh.map(r => r.anime));
-      // Update local cache with fresh data
-      fresh.forEach(r => saveRatingToLocalCache(r));
-    }
-    setSyncStatus("idle");
   };
 
   // ── Sign out — clear everything ───────────────────────────────────────────
@@ -2773,19 +2707,14 @@ function App() {
   const addToList = a => { if(!watchlist.find(x=>x.id===a.id)) setWatchlist(l=>[...l,a]); };
   const removeFromList = id => setWatchlist(l=>l.filter(a=>a.id!==id));
 
-  const handleRatingSubmit = async data => {
-    // Update UI instantly
+  const handleRatingSubmit = data => {
     setUserRatings(r=>{
       const i=r.findIndex(x=>x.anime.id===data.anime.id);
       if(i>=0){const n=[...r];n[i]=data;return n;}
       return [...r,data];
     });
     addToList(data.anime);
-    saveRatingToLocalCache(data); // cache locally
-    // Save to Sheets in background
-    setSyncStatus("saving");
-    await saveRatingToSheets(data);
-    setSyncStatus("idle");
+    saveRatingToLocalCache(data); // save to localStorage instantly
   };
 
   const sharedProps = { setPage, setRatingAnime, watchlist, addToList, images };
@@ -2824,18 +2753,7 @@ function App() {
             <span style={{color:"rgba(255,255,255,0.6)",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>Loading posters…</span>
           </div>
         )}
-        {syncStatus === "loading" && (
-          <div style={{background:"rgba(7,0,26,0.95)",border:"1px solid rgba(0,229,204,0.4)",borderRadius:12,padding:"10px 16px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 8px 30px rgba(0,0,0,0.5)",backdropFilter:"blur(12px)"}}>
-            <div style={{width:14,height:14,border:"2px solid rgba(0,229,204,0.2)",borderTopColor:"#00E5CC",borderRadius:"50%",animation:"spin 0.8s linear infinite",flexShrink:0}}/>
-            <span style={{color:"rgba(0,229,204,0.85)",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>Syncing your ratings…</span>
-          </div>
-        )}
-        {syncStatus === "saving" && (
-          <div style={{background:"rgba(7,0,26,0.95)",border:"1px solid rgba(245,166,35,0.4)",borderRadius:12,padding:"10px 16px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 8px 30px rgba(0,0,0,0.5)",backdropFilter:"blur(12px)"}}>
-            <div style={{width:14,height:14,border:"2px solid rgba(245,166,35,0.2)",borderTopColor:"#F5A623",borderRadius:"50%",animation:"spin 0.8s linear infinite",flexShrink:0}}/>
-            <span style={{color:"rgba(245,166,35,0.85)",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>Saving to cloud…</span>
-          </div>
-        )}
+
       </div>
       {page==="home"    && <HomePage    {...sharedProps} userRatings={userRatings}/>}
       {page==="explore" && <ExplorePage {...sharedProps}/>}
